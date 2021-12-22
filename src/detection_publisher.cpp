@@ -6,7 +6,7 @@
 #include <darknet_ros_msgs/BoundingBoxes.h>
 #include <darknet_ros_msgs/CheckForObjectsAction.h>
 #include <darknet_ros_msgs/ObjectCount.h>
-
+#include <ros/console.h>
 class detection_publisher{
 	private:
 		ros::NodeHandle nh;
@@ -22,7 +22,7 @@ class detection_publisher{
 		int id;
 		int cnt;
 	public:
-		detection_publisher(): it(nh)
+		detection_publisher(): it(nh),xmin(0),ymin(0),xmax(0),ymax(0),id(1),cnt(0)
   {
     sub = it.subscribe("/usb_cam/image_raw", 1,&detection_publisher::imageCallback, this);
     box_sub = nh.subscribe("/darknet_ros/bounding_boxes", 1,&detection_publisher::boxCallback, this);
@@ -30,15 +30,28 @@ class detection_publisher{
     
   }
   	void boxCallback(const darknet_ros_msgs::BoundingBoxes& msg2){
-  		xmin=msg2.bounding_boxes[0].xmin;
-  		ymin=msg2.bounding_boxes[0].ymin;
-  		xmax=msg2.bounding_boxes[0].xmax;
-  		ymax=msg2.bounding_boxes[0].ymax;
-  		publishImage();
+  		ROS_INFO("boxCallback");
+  		if(msg2.bounding_boxes.size()!=0){
+  		for(auto iter=msg2.bounding_boxes.begin(); iter!= msg2.bounding_boxes.end();iter++)
+  			if(iter->id==0){
+  				
+	  			xmin=iter->xmin;
+		  		ymin=iter->ymin;
+		  		xmax=iter->xmax;
+		  		ymax=iter->ymax;
+		  		int targetx=int((xmin+xmax)/2);
+  				int targety=int((ymin+ymax)/2);
+		  		publishImage();
+		  		break;
+  			}else continue;
+	  		
+  		}
+  		//publishImage();
+  		
   	}
 	void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 	{
-			
+			ROS_INFO("imageCallback");
 		  try
 		  {
 		    cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
@@ -52,6 +65,7 @@ class detection_publisher{
 		  
 	}
 	void publishImage(){
+	ROS_INFO("publishImage");
 		cv::rectangle(cv_ptr->image, cv::Point(xmin, ymin),cv::Point(xmax,ymax), cv::Scalar(0, 255, 0));
 		pub.publish(cv_ptr->toImageMsg());
 	}
