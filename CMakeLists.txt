@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   darknet_ros_msgs
+  geometry_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -107,9 +108,9 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#INCLUDE_DIRS include
+INCLUDE_DIRS src
 #LIBRARIES ${PROJECT_NAME}_lib
-CATKIN_DEPENDS cv_bridge image_transport roscpp rospy sensor_msgs std_msgs darknet_ros_msgs 
+CATKIN_DEPENDS cv_bridge image_transport roscpp rospy sensor_msgs std_msgs darknet_ros_msgs geometry_msgs
 #DEPENDS system_lib
 )
 
