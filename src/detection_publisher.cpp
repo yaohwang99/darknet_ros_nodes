@@ -31,7 +31,7 @@ class detection_publisher{
 	public:
 		detection_publisher(): it(nh),xmin(0),ymin(0),xmax(0),ymax(0),id(1),cnt(0),th(0),turn(1.0),targetx(320),targety(240)
   {
-    sub = it.subscribe("/usb_cam/image_raw", 1,&detection_publisher::imageCallback, this);
+    sub = it.subscribe("/camera/color/image_raw", 1,&detection_publisher::imageCallback, this);
     box_sub = nh.subscribe("/darknet_ros/bounding_boxes", 1,&detection_publisher::boxCallback, this);
     pub = it.advertise("custom_detection_image", 1);
     twist_pub = nh.advertise<geometry_msgs::Twist>("cmd_vel", 1);

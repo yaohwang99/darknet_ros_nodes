@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<launch>
+  <!-- Console launch prefix -->
+  <arg name="launch_prefix" default=""/>
+  <include file="$(find darknet_ros)/launch/darknet_ros.launch" />
+  <arg name="image" default="/camera/color/image_raw" />
+
+  <!-- Start darknet and ros wrapper -->
+  <node pkg="darknet_ros_nodes" type="darknet_ros_nodes" name="detection_publisher" output="screen" />
+    <remap from="camera/color/image_raw"  to="$(arg image)" />
+    
+
+
+</launch>
