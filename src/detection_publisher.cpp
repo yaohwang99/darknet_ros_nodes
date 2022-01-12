@@ -24,12 +24,13 @@ class detection_publisher{
 		int ymax;
 		int id;
 		int cnt;
-		int th;
+		float th;
 		float turn;
 		int targetx;
 		int targety;
+		
 	public:
-		detection_publisher(): it(nh),xmin(0),ymin(0),xmax(0),ymax(0),id(1),cnt(0),th(0),turn(1.0),targetx(320),targety(240)
+		detection_publisher(): it(nh),xmin(0),ymin(0),xmax(0),ymax(0),id(1),cnt(0),th(0),turn(3.0/320.0),targetx(320),targety(240)
   {
     sub = it.subscribe("/camera/color/image_raw", 1,&detection_publisher::imageCallback, this);
     box_sub = nh.subscribe("/darknet_ros/bounding_boxes", 1,&detection_publisher::boxCallback, this);
@@ -56,14 +57,17 @@ class detection_publisher{
 				  		ymax=iter->ymax;
 				  		targetx=int((xmin+xmax)/2);
 		  				targety=int((ymin+ymax)/2);
-		  				if(targetx>=340) th=-1;
-		  				else if(targetx<=300) th=1;
+		  				if(targetx>=340) {th=-(targetx-320); ROS_INFO("%f", th);}
+		  				else if(targetx<=300) {th=320-targetx;ROS_INFO("%f", th);}
 		  				else th=0;
 		  				twist.angular.z = th * turn;
+		  				ROS_INFO("th: %f", th );
+		  				ROS_INFO("turn: %f", turn );
+		  				ROS_INFO("twist.angular.z: %f", twist.angular.z );
 				  		publishImage();
 				  		break;
 		  			}else {
-		  			th=0;
+		  			th=0; 	
 		  			}
 	  		}
   		}
