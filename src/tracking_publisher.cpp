@@ -121,6 +121,7 @@ class tracking_publisher{
 	            }      
             }
             pub.publish(cv_ptr->toImageMsg());
+            
 		}
 };
 
