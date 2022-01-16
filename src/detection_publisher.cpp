@@ -38,7 +38,7 @@ class detection_publisher{
 		//rotation parameters
 		float th;
 		float turn_speed;
-		double distance;
+		int distance;
 		
 		
 	public:
@@ -83,7 +83,7 @@ class detection_publisher{
 				  	//Center point of bounding box
 				  	targetx = int((xmin+xmax)/2);
 		  			targety = int((ymin+ymax)/2);
-		  			depth_targetx=int(targetx/640*848);
+		  			depth_targetx=int(targetx+102);
 		  			depth_targety=targety;
 		  			//640 x 480 for each image
 		  			//horizontal distance with center point of image
@@ -96,19 +96,22 @@ class detection_publisher{
 		  			//distance in mm
 		  			if(depth_cv_ptr)
 					distance = depth_cv_ptr->image.at<u_int16_t>(depth_targetx, depth_targety);
-		  			ROS_INFO("th: %f", th );
-		  			ROS_INFO("turn: %f", turn_speed );
-		  			ROS_INFO("twist.angular.z: %f", twist.angular.z );
-		  			ROS_INFO("distance: %f",distance);
-				  	
+		  			//ROS_INFO("th: %f", th );
+		  			//ROS_INFO("turn: %f", turn_speed );
+		  			//ROS_INFO("twist.angular.z: %f", twist.angular.z );
+		  			ROS_INFO("distance: %d",distance);
+		  			if(depth_cv_ptr)
+				  	ROS_INFO("center distance: %d",depth_cv_ptr->image.at<u_int16_t>(424, 320));
 				  	//Draw bounding box
 				  	cv::rectangle(cv_ptr->image, cv::Point(xmin, ymin),cv::Point(xmax,ymax), cv::Scalar(0, 255, 0));
 				  	cv::circle(cv_ptr->image, cv::Point(targetx, targety),10, cv::Scalar(0, 0, 255));
-				  	
+				  	cv::circle(depth_cv_ptr->image, cv::Point(targetx+102, targety),10, cv::Scalar(255));
 				  	break;
 		  		}
 	  		}
   		}
+  		
+		
 		
 		//Tolerance range
   		cv::line(cv_ptr->image, cv::Point(300, 0),cv::Point(300,480), cv::Scalar(255, 0, 0));
@@ -137,10 +140,16 @@ class detection_publisher{
 	}
 	void depthCallback(const sensor_msgs::ImageConstPtr& msg){
 		//ROS_INFO("dheight:%d",msg->height);
-		//ROS_INFO("dwidth:%d",msg->width);
+		//ROS_INFO("raw_distance:%d",msg->data[depth_targetx + depth_targety*848]);
 		try
 		    {
 		      depth_cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_16UC1);
+		      if(depth_cv_ptr){
+		      	ROS_INFO("depth image width: %d",depth_cv_ptr->image.cols);
+		      ROS_INFO("depth image height %d",depth_cv_ptr->image.rows);
+		      cv::imshow("depth",depth_cv_ptr->image);
+		      }
+		      
 		    }
 	    catch (cv_bridge::Exception& e)
 		    {
@@ -164,6 +173,8 @@ int main(int argc, char** argv)
 {
 	
   ros::init(argc, argv, "detection_publisher");
+  cv::namedWindow("depth");
+  cv::startWindowThread();
   detection_publisher ic;
   //signal(SIGINT, ic.SIGINT_Handler);
   ros::spin();
