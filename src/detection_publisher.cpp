@@ -17,12 +17,14 @@ class detection_publisher{
 		ros::NodeHandle nh;
 		image_transport::ImageTransport it;
 		image_transport::Publisher pub;
-		image_transport::Subscriber sub;
+		image_transport::Subscriber img_sub;
+		image_transport::Subscriber depth_sub;
 		ros::Subscriber box_sub;
 		ros::Publisher twist_pub;
 		cv_bridge::CvImagePtr cv_ptr;
+		cv_bridge::CvImagePtr depth_cv_ptr;
 		geometry_msgs::Twist twist;
-		
+		sensor_msgs::Image depth_img;
 		//bounding box information
 		int xmin;
 		int ymin;
@@ -31,18 +33,22 @@ class detection_publisher{
 		//Center point of bounding box
 		int targetx;
 		int targety;
-		
+		int depth_targetx;
+		int depth_targety;
 		//rotation parameters
 		float th;
 		float turn_speed;
+		double distance;
 		
 		
 	public:
-		detection_publisher(): it(nh),xmin(0),ymin(0),xmax(0),ymax(0),th(0),turn_speed(3.0/320.0),targetx(320),targety(240)
+		detection_publisher(): it(nh),xmin(0),ymin(0),xmax(0),ymax(0),th(0),turn_speed(3.0/320.0),targetx(320),targety(240),distance(0)
   {
   	//Subscribe to topic
-    sub = it.subscribe("/camera/color/image_raw", 1,&detection_publisher::imageCallback, this);
+    img_sub = it.subscribe("/camera/color/image_raw", 1,&detection_publisher::imageCallback, this);
+    depth_sub = it.subscribe("/camera/depth/image_rect_raw", 1,&detection_publisher::depthCallback, this);
     box_sub = nh.subscribe("/darknet_ros/bounding_boxes", 1,&detection_publisher::boxCallback, this);
+    
     
     //New topic which is the result of image.
     pub = it.advertise("custom_detection_image", 1);
@@ -77,7 +83,8 @@ class detection_publisher{
 				  	//Center point of bounding box
 				  	targetx = int((xmin+xmax)/2);
 		  			targety = int((ymin+ymax)/2);
-		  			
+		  			depth_targetx=int(targetx/640*848);
+		  			depth_targety=targety;
 		  			//640 x 480 for each image
 		  			//horizontal distance with center point of image
 		  			th = 320 - targetx;
@@ -86,10 +93,13 @@ class detection_publisher{
 					
 					//counting angular velocity
 		  			twist.angular.z = th * turn_speed;
-		  			
+		  			//distance in mm
+		  			if(depth_cv_ptr)
+					distance = depth_cv_ptr->image.at<u_int16_t>(depth_targetx, depth_targety);
 		  			ROS_INFO("th: %f", th );
 		  			ROS_INFO("turn: %f", turn_speed );
 		  			ROS_INFO("twist.angular.z: %f", twist.angular.z );
+		  			ROS_INFO("distance: %f",distance);
 				  	
 				  	//Draw bounding box
 				  	cv::rectangle(cv_ptr->image, cv::Point(xmin, ymin),cv::Point(xmax,ymax), cv::Scalar(0, 255, 0));
@@ -112,6 +122,8 @@ class detection_publisher{
 	void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 	{
 			//ROS_INFO("imageCallback");
+			//ROS_INFO("height:%d",msg->height);
+		//ROS_INFO("width:%d",msg->width);
 		  try
 		  {
 		    cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
@@ -122,6 +134,20 @@ class detection_publisher{
 		    ROS_ERROR("cv_bridge exception: %s", e.what());
 		    return;
 		  }  
+	}
+	void depthCallback(const sensor_msgs::ImageConstPtr& msg){
+		//ROS_INFO("dheight:%d",msg->height);
+		//ROS_INFO("dwidth:%d",msg->width);
+		try
+		    {
+		      depth_cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_16UC1);
+		    }
+	    catch (cv_bridge::Exception& e)
+		    {
+		      ROS_ERROR("cv_bridge exception: %s", e.what());
+		      return;
+		    }
+		
 	}
 	
 	void SIGINT_Handler(int signum)
@@ -139,7 +165,7 @@ int main(int argc, char** argv)
 	
   ros::init(argc, argv, "detection_publisher");
   detection_publisher ic;
-  signal(SIGINT, ic.SIGINT_Handler);
+  //signal(SIGINT, ic.SIGINT_Handler);
   ros::spin();
 
  return 0;
