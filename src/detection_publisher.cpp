@@ -67,7 +67,11 @@ class detection_publisher{
 		void boxCallback(const darknet_ros_msgs::BoundingBoxes& msg2){
 			//ROS_INFO("boxCallback");
 
-			if(!rgb_ptr) return;
+			if(!rgb_ptr)
+			{
+				show();
+				return;
+			}
 			
 			//Initialize angular velocity is zero
 			twist.linear.x = 0;
@@ -105,6 +109,7 @@ class detection_publisher{
 			if(!depth_ptr)
 			{
 				twist_pub.publish(twist);
+				show();
 				return;
 			}
 
