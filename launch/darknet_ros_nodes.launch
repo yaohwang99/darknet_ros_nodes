@@ -1,20 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
-
 <launch>
-  <!-- Console launch prefix -->
-  <arg name="launch_prefix" default=""/>
-  <arg name="image" default="/camera/color/image_raw" />
-  <arg name="filter" default="pointcloud" />
-  <include file="$(find darknet_ros)/launch/darknet_ros.launch" />
-  <include file="$(find realsense2_camera)/launch/rs_camera.launch"/>
-  
-
-  <!-- Start darknet and ros wrapper -->
-  <!--node pkg="darknet_ros_nodes" type="detection_publisher.cpp" name="detection_publisher" output="screen" /-->
-    <remap from="camera/color/image_raw"  to="$(arg image)" />
-   
-	
-    
-
-
+<node name="detection_publisher" pkg="darknet_ros_nodes" type="detection_publisher" output="screen"/> 
 </launch>
