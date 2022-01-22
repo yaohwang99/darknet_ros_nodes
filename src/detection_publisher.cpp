@@ -32,7 +32,6 @@ class detection_publisher{
 
 		int tolerance;
 		
-		
 	public:
 		detection_publisher(): it(nh), turn_speed(3.0/320.0), curr_depth(0), tolerance(20)
 		{
@@ -53,7 +52,6 @@ class detection_publisher{
 			twist.angular.x = 0;
 			twist.angular.y = 0;
 			twist.angular.z = 0;
-			
 		}
 		~detection_publisher()
 		{
@@ -71,6 +69,7 @@ class detection_publisher{
 			if(!rgb_ptr) return;
 			
 			//Initialize angular velocity is zero
+			twist.linear.x = 0;
 			twist.angular.z = 0;
 			bbox.x = 0;
 			bbox.y = 0;
@@ -79,7 +78,8 @@ class detection_publisher{
 			
 			if(msg2.bounding_boxes.size()!=0) //Yolo detect items.
 			{
-				for(auto iter=msg2.bounding_boxes.begin(); iter!= msg2.bounding_boxes.end(); ++iter){
+				for(auto iter=msg2.bounding_boxes.begin(); iter!= msg2.bounding_boxes.end(); ++iter)
+				{
 					if(iter->id == 0) //human's id is 0
 					{ 
 						//Get bounding box information
@@ -91,7 +91,7 @@ class detection_publisher{
 						//640 x 480 for each image
 						//horizontal distance with center point of image
 						float th = 320 - (iter->xmax + iter->xmin) / 2.0;
-						if(th < 20 && th >-20) th = 0;
+						if(th < tolerance && th > -tolerance) th = 0;
 						
 						//counting angular velocity
 						twist.angular.z = th * turn_speed;
@@ -101,7 +101,18 @@ class detection_publisher{
 				}
 			}
 
+			if(!depth_ptr)
+			{
+				twist_pub.publish(twist);
+				return;
+			}
+
+			if(bbox.x == 0 && bbox.width == 0) return;
+
+			curr_depth = depth_ptr->image.at<u_int16_t>(bbox.x + bbox.width/2, bbox.y + bbox.height);
+			if(curr_depth > 800 && curr_depth < 5000) twist.linear.x = 0.1;
 			twist_pub.publish(twist);
+			show();
 		}
   	
 		void imageCallback(const sensor_msgs::ImageConstPtr& msg)
@@ -116,7 +127,6 @@ class detection_publisher{
 				ROS_ERROR("cv_bridge exception: %s", e.what());
 				return;
 			}
-			show();
 		}
 
 		void depthCallback(const sensor_msgs::ImageConstPtr& msg)
@@ -138,7 +148,7 @@ class detection_publisher{
 			std::cout << "rgb image : " << ((rgb_ptr) ? "get" : "fail") << std::endl;
 			std::cout << "align_depth : " << ((depth_ptr) ? "get" : "fail") << std::endl;
 			std::cout << "bounding box center : ( " << bbox.x + bbox.width/2.0 << " , " << bbox.y + bbox.height/2.0 << " )\n";
-			std::cout << "center depth : " << ((depth_ptr) ? curr_depth : 0) << "\n";
+			std::cout << "center depth : " << curr_depth  << "\n";
 			std::cout << "twist :\n"
 					  << "linear  x : " << twist.linear.x << "\n"
 					  << "linear  y : " << twist.linear.y << "\n"
@@ -148,10 +158,8 @@ class detection_publisher{
 					  << "angular z : " << twist.angular.z << "\n";
 			if(rgb_ptr)
 			{
-				cv::circle(rgb_ptr->image, cv::Point(320, 240), 10, cv::Scalar(0, 0, 255));
 				cv::imshow("rgb image", rgb_ptr->image);
 			}
-			
 		}
 };
 
