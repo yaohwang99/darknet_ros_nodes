@@ -11,6 +11,9 @@
 #include <geometry_msgs/Twist.h>
 #include <csignal>
 
+#define FOLLOW_DISTANCE 2000
+#define ROTATION_TOLERANCE 20
+
 class detection_publisher{
 	private:
 		ros::NodeHandle nh;
@@ -29,11 +32,9 @@ class detection_publisher{
 		float turn_speed;
 
 		int curr_depth;
-
-		int tolerance;
 		
 	public:
-		detection_publisher(): it(nh), turn_speed(3.0/320.0), curr_depth(0), tolerance(20)
+		detection_publisher(): it(nh), turn_speed(3.0/320.0), curr_depth(0)
 		{
 			//Subscribe to topic
 			rgb_sub = it.subscribe("/camera/color/image_raw", 1,&detection_publisher::imageCallback, this);
@@ -91,7 +92,7 @@ class detection_publisher{
 						//640 x 480 for each image
 						//horizontal distance with center point of image
 						float th = 320 - (iter->xmax + iter->xmin) / 2.0;
-						if(th < tolerance && th > -tolerance) th = 0;
+						if(th < ROTATION_TOLERANCE && th > -ROTATION_TOLERANCE) th = 0;
 						
 						//counting angular velocity
 						twist.angular.z = th * turn_speed;
@@ -110,7 +111,9 @@ class detection_publisher{
 			if(bbox.x == 0 && bbox.width == 0) return;
 
 			curr_depth = depth_ptr->image.at<u_int16_t>(bbox.x + bbox.width/2, bbox.y + bbox.height);
-			if(curr_depth > 800 && curr_depth < 5000) twist.linear.x = 0.1;
+			if(curr_depth < FOLLOW_DISTANCE) twist.linear.x = - 0.1;
+			else if(curr_depth > FOLLOW_DISTANCE) twist.linear.x = 0.1;
+			
 			twist_pub.publish(twist);
 			show();
 		}
@@ -144,18 +147,20 @@ class detection_publisher{
 		void show()
 		{
 			system("clear");
-			std::cout << "***darknet_ros_nodes detection_publisher***\n";
-			std::cout << "rgb image : " << ((rgb_ptr) ? "get" : "fail") << std::endl;
-			std::cout << "align_depth : " << ((depth_ptr) ? "get" : "fail") << std::endl;
+			std::cout << "***\033[1mdarknet_ros_nodes detection_publisher***\n\033[0m";
+			std::cout << ((rgb_ptr) ? "\033[0;32m[OK] RGB Image\033[0m\n" :  "\033[0;31m[ERROR] RGB Image\033[0m\n");
+			std::cout << ((depth_ptr) ? "\033[0;32m[OK] Align Depth\033[0m\n" :  "\033[0;31m[ERROR] Align Depth\033[0m\n");
 			std::cout << "bounding box center : ( " << bbox.x + bbox.width/2.0 << " , " << bbox.y + bbox.height/2.0 << " )\n";
-			std::cout << "center depth : " << curr_depth  << "\n";
+			std::cout << "\033[0;33mcenter depth : " << curr_depth  << "\n\033[0m";
 			std::cout << "twist :\n"
-					  << "linear  x : " << twist.linear.x << "\n"
-					  << "linear  y : " << twist.linear.y << "\n"
-					  << "linear  z : " << twist.linear.z << "\n"
-					  << "angular x : " << twist.angular.x << "\n"
-					  << "angular y : " << twist.angular.y << "\n"
-					  << "angular z : " << twist.angular.z << "\n";
+					  << "\tlinear  x : " << twist.linear.x << "\n"
+					  << "\tlinear  y : " << twist.linear.y << "\n"
+					  << "\tlinear  z : " << twist.linear.z << "\n"
+					  << "\tangular x : " << twist.angular.x << "\n"
+					  << "\tangular y : " << twist.angular.y << "\n"
+					  << "\tangular z : " << twist.angular.z << "\n";
+			std::cout << "rotation tolerance : " << ROTATION_TOLERANCE << "\n";
+			std::cout << "Follow distance : " << FOLLOW_DISTANCE << "\n";
 			if(rgb_ptr)
 			{
 				cv::imshow("rgb image", rgb_ptr->image);
