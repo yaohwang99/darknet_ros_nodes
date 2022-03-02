@@ -111,8 +111,8 @@ class detection_publisher{
 			if(depth_ptr && bbox.width != 0)
 			{
 				curr_depth = depth_ptr->image.at<u_int16_t>(bbox.x + bbox.width/2, bbox.y + bbox.height);
-				if(curr_depth < FOLLOW_DISTANCE) twist.linear.x = - 0.1;
-				else if(curr_depth > FOLLOW_DISTANCE) twist.linear.x = 0.1;
+				if(curr_depth < FOLLOW_DISTANCE-300) twist.linear.x = - 0.4;
+				else if(curr_depth > FOLLOW_DISTANCE+300) twist.linear.x = 0.4;
 			}
 			
 			twist_pub.publish(twist);
