@@ -12,7 +12,7 @@
 #include <csignal>
 #include <pthread.h>
 
-#define FOLLOW_DISTANCE 2000
+#define FOLLOW_DISTANCE 1000
 #define FOLLOW_TOLERANCE 300
 #define FOLLOW_MAX_DISTANCE 2000
 #define FOLLOW_SPEED 5.0/4000;
@@ -105,9 +105,9 @@ class detection_publisher{
 				int curr_depth = depth_ptr->image.at<uint16_t>(center[1], center[0]);
 				std::cout << "\033[0;33mcenter depth : " << curr_depth  << "\n\033[0m";
 				curr_depth -= FOLLOW_DISTANCE;
-				if(curr_depth < FOLLOW_TOLERANCE && curr_depth > -FOLLOW_TOLERANCE) curr_depth = 0;
+				if(curr_depth < 0) curr_depth = 0;
+				else if(curr_depth < FOLLOW_TOLERANCE && curr_depth > -FOLLOW_TOLERANCE) curr_depth = 0;
 				else if(curr_depth > FOLLOW_MAX_DISTANCE) curr_depth = 0;
-				else if(curr_depth < 0) curr_depth = 0;
 				twist.linear.x = curr_depth * FOLLOW_SPEED;
 			}
 			else
