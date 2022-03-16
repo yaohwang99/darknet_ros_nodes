@@ -1,25 +1,16 @@
 <launch>
-<arg name="launch_prefix" default=""/>
-  <arg name="image" default="/camera/rgb/image_raw" />
-
-  <!-- Config and weights folder. -->
   <arg name="yolo_weights_path"          default="$(find darknet_ros)/yolo_network_config/weights"/>
   <arg name="yolo_config_path"           default="$(find darknet_ros)/yolo_network_config/cfg"/>
 
-  <!-- ROS and network parameter files -->
-  <arg name="ros_param_file"             default="$(find darknet_ros)/config/ros.yaml"/>
-  <arg name="network_param_file"         default="$(find darknet_ros)/config/yolov2_human.yaml"/>
+  <include file="$(find darknet_ros)/launch/darknet_ros.launch">
+   <arg name="image" value="/camera/color/image_raw" />
+  </include>
 
-  <!-- Load parameters -->
-  <rosparam command="load" ns="darknet_ros" file="$(arg ros_param_file)"/>
-  <rosparam command="load" ns="darknet_ros" file="$(arg network_param_file)"/>
+  <include file="$(find realsense2_camera)/launch/rs_camera.launch"> 
+    <arg name="align_depth" value="true"/>
+  </include>
+  
+  <!-- roslaunch realsense2_camera rs_camera.launch align_depth:=true-->
 
-  <!-- Start darknet and ros wrapper -->
-  <node pkg="darknet_ros" type="darknet_ros" name="darknet_ros" output="screen" launch-prefix="$(arg launch_prefix)">
-    <param name="weights_path"          value="$(arg yolo_weights_path)" />
-    <param name="config_path"           value="$(arg yolo_config_path)" />
-    <remap from="camera/rgb/image_raw"  to="$(arg image)" />
-  </node>
-
-<node name="detection_publisher" pkg="darknet_ros_nodes" type="detection_publisher" output="screen"/> 
+<node name="detection_publisher" pkg="darknet_ros_nodes" type="detection_publisher" output="screen" launch-prefix=""/> 
 </launch>
