@@ -31,16 +31,17 @@ class detection_publisher{
 		
 		//rotation parameters
 		float turn_speed;
-
+		float line_speed;
 		int curr_depth;
 
 		pthread_mutex_t mutex;
 		
 	public:
-		detection_publisher(): it(nh), turn_speed(3.0/320.0), curr_depth(0)
+		detection_publisher(): it(nh), turn_speed(3.0/320.0), curr_depth(0), line_speed(5.0/4000.0)
 		{
 			//Subscribe to topic
 			rgb_sub = it.subscribe("/camera/color/image_raw", 1,&detection_publisher::imageCallback, this);
+			// rgb_sub = it.subscribe("/usb_cam/image_raw", 1,&detection_publisher::imageCallback, this);
 			depth_sub = it.subscribe("/camera/aligned_depth_to_color/image_raw", 1,&detection_publisher::depthCallback, this);
 			box_sub = nh.subscribe("/darknet_ros/bounding_boxes", 1,&detection_publisher::boxCallback, this);
 			
@@ -107,12 +108,18 @@ class detection_publisher{
 					}
 				}
 			}
-
+			if(rgb_ptr && bbox.width != 0){
+					cv::circle(rgb_ptr->image, cv::Point(bbox.x + bbox.width/2, bbox.y + bbox.height/2), 10, cv::Scalar(0, 0, 255),-1);
+					cv::imshow("rgb image", rgb_ptr->image);
+			}
 			if(depth_ptr && bbox.width != 0)
 			{
-				curr_depth = depth_ptr->image.at<u_int16_t>(bbox.x + bbox.width/2, bbox.y + bbox.height);
-				if(curr_depth < FOLLOW_DISTANCE-300) twist.linear.x = - 0.4;
-				else if(curr_depth > FOLLOW_DISTANCE+300) twist.linear.x = 0.4;
+				curr_depth = depth_ptr->image.at<u_int16_t>( bbox.y + bbox.height/2, bbox.x + bbox.width/2);
+				
+				float ln = curr_depth - FOLLOW_DISTANCE;
+				if(curr_depth > FOLLOW_DISTANCE-300 && curr_depth < FOLLOW_DISTANCE+300) ln = 0;
+				ln = ln < 2000.0? ln:2000.0;
+				twist.linear.x = ln * line_speed;
 			}
 			
 			twist_pub.publish(twist);
@@ -127,7 +134,7 @@ class detection_publisher{
 			try
 			{
 				rgb_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
-				cv::imshow("rgb image", rgb_ptr->image);
+				
 			}
 			catch (cv_bridge::Exception& e)
 			{
@@ -188,7 +195,7 @@ int main(int argc, char** argv)
 	detection_publisher ic;
   	//ros::spin();
 	ros::MultiThreadedSpinner spinner(3); // Use 4 threads
-    spinner.spin();
+    	spinner.spin();
 	std::cout << "\ndone\n";
  	return 0;
 }
