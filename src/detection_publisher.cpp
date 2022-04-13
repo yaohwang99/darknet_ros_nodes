@@ -7,6 +7,7 @@
 #include <darknet_ros_msgs/BoundingBoxes.h>
 #include <darknet_ros_msgs/CheckForObjectsAction.h>
 #include <darknet_ros_msgs/ObjectCount.h>
+#include <darknet_ros_nodes/Tracker_on_off.h>
 #include <ros/console.h>
 #include <geometry_msgs/Twist.h>
 #include <csignal>
@@ -25,20 +26,25 @@ class detection_publisher{
 		ros::NodeHandle nh;
 		image_transport::ImageTransport it;
 		image_transport::Subscriber depth_sub;
+		image_transport::Subscriber image_sub;
+		image_transport::Publisher image_pub;
 		ros::Subscriber box_sub;
 		ros::Publisher twist_pub;
 		cv_bridge::CvImagePtr depth_ptr;
+		cv_bridge::CvImagePtr image_ptr;
 		geometry_msgs::Twist twist;
 
 		pthread_mutex_t mutex;
-		
+		ros::ServiceServer service;
+		bool is_on;
 	public:
-		detection_publisher(): it(nh)
+		detection_publisher(): it(nh), is_on(false)
 		{
 			//Subscribe to topic
 			depth_sub = it.subscribe("/camera/aligned_depth_to_color/image_raw", 1,&detection_publisher::depthCallback, this);
+			image_sub = it.subscribe("/camera/color/image_raw", 1,&detection_publisher::imageCallback, this);
 			box_sub = nh.subscribe("/darknet_ros/bounding_boxes", 1,&detection_publisher::boxCallback, this);
-			
+			image_pub = it.advertise("/camera/on_off/image_raw", 1);
 			//Comtrol command
 			twist_pub = nh.advertise<geometry_msgs::Twist>("cmd_vel", 1);
 			twist.linear.x = 0;
@@ -47,6 +53,10 @@ class detection_publisher{
 			twist.angular.x = 0;
 			twist.angular.y = 0;
 			twist.angular.z = 0;
+
+			// sevice
+			service = nh.advertiseService("detection_publisher/Tracker_on_off", &detection_publisher::add, this);
+
 		}
 		~detection_publisher()
 		{
@@ -58,18 +68,39 @@ class detection_publisher{
 			twist.angular.z = 0;
 			twist_pub.publish(twist);
 		}
-		void boxCallback(const darknet_ros_msgs::BoundingBoxes& msg2){
+		bool add(darknet_ros_nodes::Tracker_on_off::Request  &req,
+         darknet_ros_nodes::Tracker_on_off::Response &res)
+		{
+			if(is_on){
+					twist.linear.x = 0;
+					twist.linear.y = 0;
+					twist.linear.z = 0;
+					twist.angular.x = 0;
+					twist.angular.y = 0;
+					twist.angular.z = 0;
+					twist_pub.publish(twist);
+				}
+			is_on = !is_on;
+			res.sum = req.a + req.b;
+			ROS_INFO("request: x=%ld, y=%ld", (long int)req.a, (long int)req.b);
+			ROS_INFO("sending back response: [%ld]", (long int)res.sum);
+			ROS_INFO("is_on: %d", is_on);
+			return true;
+		}
 
+		void boxCallback(const darknet_ros_msgs::BoundingBoxes& msg2){
+			if(!is_on)
+				return;
 			system("clear");
 			std::cout << "***\033[1mdarknet_ros_nodes detection_publisher***\n\033[0m";
 
 			// 0 for x, for y
-			int center[2];
+			int center[2] = {0,0};
 
-			pthread_mutex_lock(&mutex);
+			// pthread_mutex_lock(&mutex);
 			twist.linear.x = 0;
 			twist.angular.z = 0;
-			pthread_mutex_unlock(&mutex);
+			// pthread_mutex_unlock(&mutex);
 
 			if(msg2.bounding_boxes.size()!=0) //Yolo detect items.
 			{
@@ -88,9 +119,9 @@ class detection_publisher{
 						if(th < ROTATION_TOLERANCE && th > -ROTATION_TOLERANCE) th = 0;
 							
 						//counting angular velocity
-						pthread_mutex_lock(&mutex);
+						// pthread_mutex_lock(&mutex);
 						twist.angular.z = th * ROTATION_SPEED;
-						pthread_mutex_unlock(&mutex);
+						// pthread_mutex_unlock(&mutex);
 
 						break;
 					}
@@ -99,7 +130,7 @@ class detection_publisher{
 
 			std::cout << "bounding box center : ( " << center[0] << " , " << center[1] << " )\n";
 
-			pthread_mutex_lock(&mutex);
+			// pthread_mutex_lock(&mutex);
 			if(depth_ptr && center[0] != 0 && center[1] != 0)
 			{
 				int curr_depth = depth_ptr->image.at<uint16_t>(center[1], center[0]);
@@ -123,16 +154,31 @@ class detection_publisher{
 					  << "\tangular x : " << twist.angular.x << "\n"
 					  << "\tangular y : " << twist.angular.y << "\n"
 					  << "\tangular z : " << twist.angular.z << "\n";
-			pthread_mutex_unlock(&mutex);
+			// pthread_mutex_unlock(&mutex);
 		}
 
 		void depthCallback(const sensor_msgs::ImageConstPtr& msg)
 		{
+			if(!is_on)
+				return;
 			try
 			{
-				pthread_mutex_lock(&mutex);
+				// pthread_mutex_lock(&mutex);
 				depth_ptr = cv_bridge::toCvCopy(msg);
-				pthread_mutex_unlock(&mutex);
+				// pthread_mutex_unlock(&mutex);
+			}
+			catch (cv_bridge::Exception& e)
+			{
+				ROS_ERROR("cv_bridge exception: %s", e.what());
+			}
+		}
+		void imageCallback(const sensor_msgs::ImageConstPtr& msg)
+		{
+			try
+			{
+				if(is_on){
+					image_pub.publish(msg);
+				}
 			}
 			catch (cv_bridge::Exception& e)
 			{
@@ -166,7 +212,7 @@ int main(int argc, char** argv)
 	ros::init(argc, argv, "detection_publisher");
 	detection_publisher ic;
   	//ros::spin();
-	ros::MultiThreadedSpinner spinner(3); // Use 4 threads
+	ros::MultiThreadedSpinner spinner(4); // Use 4 threads
     	spinner.spin();
 	std::cout << "\ndone\n";
  	return 0;
