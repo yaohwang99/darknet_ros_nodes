@@ -15,7 +15,7 @@
 
 #define FOLLOW_DISTANCE 1000
 #define FOLLOW_TOLERANCE 300
-#define FOLLOW_MAX_DISTANCE 2000
+#define FOLLOW_MAX_DISTANCE 1000
 #define FOLLOW_SPEED 5.0/4000;
 
 #define ROTATION_TOLERANCE 20
@@ -26,8 +26,6 @@ class detection_publisher{
 		ros::NodeHandle nh;
 		image_transport::ImageTransport it;
 		image_transport::Subscriber depth_sub;
-		image_transport::Subscriber image_sub;
-		image_transport::Publisher image_pub;
 		ros::Subscriber box_sub;
 		ros::Publisher twist_pub;
 		cv_bridge::CvImagePtr depth_ptr;
@@ -42,9 +40,7 @@ class detection_publisher{
 		{
 			//Subscribe to topic
 			depth_sub = it.subscribe("/camera/aligned_depth_to_color/image_raw", 1,&detection_publisher::depthCallback, this);
-			image_sub = it.subscribe("/camera/color/image_raw", 1,&detection_publisher::imageCallback, this);
 			box_sub = nh.subscribe("/darknet_ros/bounding_boxes", 1,&detection_publisher::boxCallback, this);
-			image_pub = it.advertise("/camera/on_off/image_raw", 1);
 			//Comtrol command
 			twist_pub = nh.advertise<geometry_msgs::Twist>("cmd_vel", 1);
 			twist.linear.x = 0;
@@ -55,7 +51,7 @@ class detection_publisher{
 			twist.angular.z = 0;
 
 			// sevice
-			service = nh.advertiseService("detection_publisher/Tracker_on_off", &detection_publisher::add, this);
+			service = nh.advertiseService("detection_publisher/Tracker_on_off", &detection_publisher::switchOnOff, this);
 
 		}
 		~detection_publisher()
@@ -68,7 +64,7 @@ class detection_publisher{
 			twist.angular.z = 0;
 			twist_pub.publish(twist);
 		}
-		bool add(darknet_ros_nodes::Tracker_on_off::Request  &req,
+		bool switchOnOff(darknet_ros_nodes::Tracker_on_off::Request  &req,
          darknet_ros_nodes::Tracker_on_off::Response &res)
 		{
 			if(is_on){
@@ -80,10 +76,7 @@ class detection_publisher{
 					twist.angular.z = 0;
 					twist_pub.publish(twist);
 				}
-			is_on = !is_on;
-			res.sum = req.a + req.b;
-			ROS_INFO("request: x=%ld, y=%ld", (long int)req.a, (long int)req.b);
-			ROS_INFO("sending back response: [%ld]", (long int)res.sum);
+			res.status = is_on = !is_on;
 			ROS_INFO("is_on: %d", is_on);
 			return true;
 		}
@@ -172,19 +165,6 @@ class detection_publisher{
 				ROS_ERROR("cv_bridge exception: %s", e.what());
 			}
 		}
-		void imageCallback(const sensor_msgs::ImageConstPtr& msg)
-		{
-			try
-			{
-				if(is_on){
-					image_pub.publish(msg);
-				}
-			}
-			catch (cv_bridge::Exception& e)
-			{
-				ROS_ERROR("cv_bridge exception: %s", e.what());
-			}
-		}
 
 		// void show()
 		// {
@@ -211,9 +191,9 @@ int main(int argc, char** argv)
 	signal(SIGINT, SIGINT_Handler);  
 	ros::init(argc, argv, "detection_publisher");
 	detection_publisher ic;
-  	//ros::spin();
-	ros::MultiThreadedSpinner spinner(4); // Use 4 threads
-    	spinner.spin();
+  	ros::spin();
+	// ros::MultiThreadedSpinner spinner(4); // Use 4 threads
+    // spinner.spin();
 	std::cout << "\ndone\n";
  	return 0;
 }
