@@ -1,0 +1,13 @@
+<launch>
+  <arg name="yolo_weights_path"          default="$(find darknet_ros)/yolo_network_config/weights"/>
+  <arg name="yolo_config_path"           default="$(find darknet_ros)/yolo_network_config/cfg"/>
+
+  <include file="$(find darknet_ros)/launch/darknet_ros.launch">
+   <arg name="image" value="/camera/color/image_raw" />
+  </include>
+
+  
+  <!-- roslaunch realsense2_camera rs_camera.launch align_depth:=true-->
+
+<node name="detection_publisher" pkg="darknet_ros_nodes" type="detection_publisher" output="screen" launch-prefix=""/> 
+</launch>
